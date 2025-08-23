@@ -42,6 +42,8 @@ byteorder = { version = "1.4.3", default-features = false, features = ["std"] }
 bytes = "1.1.0"
 getrandom = "0.3"
 log = "0.4"
+num-bigint = { version = "0.4", default-features = false }
 tracing = { version = "0.1.37", features = ["log"] }
+turing-cipher = "0.1"
 
 serde = { version = "1.0.144", optional = true }
