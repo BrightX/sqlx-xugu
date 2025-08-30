@@ -13,5 +13,8 @@ mod bigdecimal;
 
 #[cfg(feature = "rust_decimal")]
 mod rust_decimal;
+
+#[cfg(feature = "chrono")]
+mod chrono;
 #[cfg(feature = "uuid")]
 mod uuid;
