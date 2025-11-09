@@ -49,6 +49,9 @@ impl XuguConnection {
                 let column = recv_next_result_column(&def, ordinal)?;
 
                 column_names.insert(column.name.clone(), ordinal);
+                // 列名不区分大小写，将大写和小写列名都加入
+                column_names.insert(column.name.to_uppercase().into(), ordinal);
+                column_names.insert(column.name.to_lowercase().into(), ordinal);
                 columns.push(column);
             }
 

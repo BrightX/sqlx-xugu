@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use sqlx_core::bytes::Bytes;
 use sqlx_core::ext::ustr::UStr;
-use sqlx_core::HashMap;
 pub(crate) use sqlx_core::row::*;
+use sqlx_core::HashMap;
+use std::sync::Arc;
 
 use crate::column::{ColumnIndex, XuguColumn};
 use crate::error::Error;
@@ -43,6 +43,10 @@ impl ColumnIndex<XuguRow> for &'_ str {
     fn index(&self, row: &XuguRow) -> Result<usize, Error> {
         row.column_names
             .get(*self)
+            .or_else(|| {
+                // 列名忽略大小写时，列名大写检索
+                row.column_names.get(&*self.to_uppercase())
+            })
             .ok_or_else(|| Error::ColumnNotFound((*self).into()))
             .copied()
     }
