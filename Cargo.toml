@@ -3,6 +3,7 @@ name = "sqlx-xugu"
 version = "0.0.0"
 edition = "2021"
 repository = "https://github.com/BrightX/sqlx-xugu"
+description = "Xugu driver implementation for SQLx. Not for direct use; see the `sqlx` crate for details."
 keywords = ["database", "async", "xugu"]
 categories = ["database", "asynchronous"]
 authors = [
