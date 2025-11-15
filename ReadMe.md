@@ -44,8 +44,8 @@ sqlx-xugu = { version = "=0.8.6", features = ["chrono", "uuid", "rust_decimal", 
 ```rust
 use sqlx_xugu::XuguPoolOptions;
 
-#[async_std::main] // Requires the `attributes` feature of `async-std`
-// or #[tokio::main]
+#[tokio::main] // Requires the `attributes` feature of `tokio`
+// or #[async_std::main]
 // or #[actix_web::main]
 async fn main() -> Result<(), sqlx::Error> {
     // Create a connection pool
@@ -67,7 +67,7 @@ async fn main() -> Result<(), sqlx::Error> {
 
 ### 建立连接
 
-可以使用任何数据库连接类型并调用 `connect()` 建立单个连接。
+可以使用 `XuguConnection` 并调用 `connect()` 建立单个连接。
 
 ```rust
 use sqlx::Connection;
@@ -80,7 +80,52 @@ let conn = XuguConnection::connect("xugu://user:password@127.0.0.1:5138/SYSTEM")
 
 ```rust
 let pool = XuguPool::connect("xugu://user:password@127.0.0.1:5138/SYSTEM").await?;
+
+// 指定连接池大小和连接时间等参数
+let pool = XuguPoolOptions::new()
+    .max_connections(50)
+    .acquire_timeout(std::time::Duration::from_secs(5))
+    .idle_timeout(std::time::Duration::from_secs(300))
+    .max_lifetime(std::time::Duration::from_secs(86400))
+    .connect("xugu://user:password@127.0.0.1:5138/SYSTEM?ssl=ssl")
+    .await?;
 ```
+
+sqlx-xugu 驱动url格式，支持以下几种
+
+```
+1. xugu://ip:port/databaseName[?property=value[&property=value]]
+  * 例：xugu://127.0.0.1:5138/SYSTEM?user=GUEST&password=GUEST&version=301&time_zone=GMT
+
+2. xugu://user:passwd@ip:port/databaseName[?property=value[&property=value]]
+  * 例：xugu://GUEST:GUEST@127.0.0.1:5138/SYSTEM?version=301&time_zone=GMT
+
+```
+
+#### 连接参数
+
+| 参数名             | 说明                                                                                                                         | 初始值                |
+|:----------------|:---------------------------------------------------------------------------------------------------------------------------|:-------------------|
+| database        | 数据库名                                                                                                                       |                    |
+| user            | 用户名                                                                                                                        |                    |
+| password        | 用户密码                                                                                                                       |                    |
+| version         | 服务器版本                                                                                                                      | 301                |
+| encryptor       | 数据库解密密钥                                                                                                                    |                    |
+| charset         | 客户端字符集(**utf8**或**gbk**)                                                                                                   | utf8               |
+| lob_ret         | 大对象返回方式                                                                                                                    |                    |
+| time_zone       | 客户端时区                                                                                                                      |                    |
+| iso_level       | 事务隔离级别                                                                                                                     | READ COMMITTED读已提交 |
+| lock_timeout    | 最大加锁等候时间                                                                                                                   |                    |
+| auto_commit     | 是否自动提交                                                                                                                     | on                 |
+| return_rowid    | 是否返回**rowid**                                                                                                              | false              |
+| return_schema   | 查询**SQL**是否返回模式信息（此参数存在一个疑问）                                                                                               | on                 |
+| identity_mode   | 数据库服务端自增长使用模式（**DEFAULT**：**default**自增,**NULL_AS_AUTO_INCREMENT**：**NULL**自增,**ZERO_AS_AUTO_INCREMENT**：**0**和**NULL**自增） |                    |
+| keyword_filter  | 数据库连接配置连接上需要开放的关键字串，已逗号分隔，例如**TABLE,FUNCTION,CONSTANT**                                                                    |                    |
+| disable_binlog  | 不记载**binlog**日志                                                                                                            |                    |
+| current_schema  | 指定连接的模式名                                                                                                                   |                    |
+| compatible_mode | 适配其他数据库(**MySQL/ORACLE/PostgreSQL**)                                                                                       | NONE               |
+| use_ssl         | 是否开启传输数据加密保护 `on`: 启用加密，`off`: 禁用加密                                                                                        | off                |
+| ssl             | 同上 `ssl=ssl`: 启用加密，`ssl=nssl`: 禁用加密                                                                                        | nssl               |
 
 ### 更多请参考 `sqlx` 相关文档
 
