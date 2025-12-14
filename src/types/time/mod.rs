@@ -197,7 +197,8 @@ impl<'r> Decode<'r, Xugu> for Time {
             let millis = buf.get_i32();
             let tz_hm = buf.get_i16();
 
-            let time = Time::MIDNIGHT + (Duration::milliseconds(millis as i64) + Duration::minutes(tz_hm as i64));
+            let time = Time::MIDNIGHT
+                + (Duration::milliseconds(millis as i64) + Duration::minutes(tz_hm as i64));
 
             return Ok(time);
         }

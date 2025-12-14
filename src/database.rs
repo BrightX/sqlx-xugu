@@ -1,10 +1,10 @@
+use crate::arguments::XuguArgumentValue;
 use crate::column::XuguColumn;
 use crate::connection::XuguConnection;
 use crate::type_info::XuguTypeInfo;
 use crate::value::{XuguValue, XuguValueRef};
 use crate::{XuguArguments, XuguQueryResult, XuguRow, XuguStatement, XuguTransactionManager};
 use sqlx_core::database::{Database, HasStatementCache};
-use crate::arguments::XuguArgumentValue;
 
 /// Xugu database driver.
 #[derive(Debug)]

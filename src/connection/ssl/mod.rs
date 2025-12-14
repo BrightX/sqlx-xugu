@@ -115,12 +115,7 @@ fn insert7(data: &[u8]) -> Vec<u8> {
 }
 
 /// 加密 连接字符串
-pub fn encrypt_conn(
-    con_str: &str,
-    key: &[u8; 32],
-    public_key: &[u8],
-    trail_key: &[u8],
-) -> Vec<u8> {
+pub fn encrypt_conn(con_str: &str, key: &[u8; 32], public_key: &[u8], trail_key: &[u8]) -> Vec<u8> {
     let con_b = insert7(con_str.as_bytes());
     let mut data = Vec::with_capacity(key.len() + con_b.len());
     data.extend_from_slice(key);

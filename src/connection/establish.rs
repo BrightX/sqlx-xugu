@@ -1,7 +1,7 @@
-use sqlx_core::common::StatementCache;
 use super::stream::XuguStream;
 use super::{XuguConnection, XuguConnectionInner};
 use crate::XuguConnectOptions;
+use sqlx_core::common::StatementCache;
 use sqlx_core::Error;
 
 impl XuguConnection {

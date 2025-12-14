@@ -107,7 +107,8 @@ impl<'r> Decode<'r, Xugu> for NaiveTime {
             let millis = buf.get_i32();
             let tz_hm = buf.get_i16();
 
-            let time = NaiveTime::MIN + (TimeDelta::milliseconds(millis as i64) + TimeDelta::minutes(tz_hm as i64));
+            let time = NaiveTime::MIN
+                + (TimeDelta::milliseconds(millis as i64) + TimeDelta::minutes(tz_hm as i64));
 
             return Ok(time);
         }

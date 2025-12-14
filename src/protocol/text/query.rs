@@ -1,6 +1,6 @@
-use sqlx_core::Error;
-use sqlx_core::io::ProtocolEncode;
 use crate::protocol::encode_command0;
+use sqlx_core::io::ProtocolEncode;
+use sqlx_core::Error;
 
 #[derive(Debug)]
 pub(crate) struct Query<'q>(pub(crate) &'q str);

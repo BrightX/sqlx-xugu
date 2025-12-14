@@ -1,11 +1,11 @@
 use crate::connection::XuguConnection;
+use crate::protocol::text::Query;
 use crate::Xugu;
 use futures_core::future::BoxFuture;
 use sqlx_core::executor::Executor;
 use sqlx_core::transaction::*;
 use sqlx_core::Error;
 use std::borrow::Cow;
-use crate::protocol::text::Query;
 
 /// Implementation of [`TransactionManager`] for Xugu.
 pub struct XuguTransactionManager;
@@ -42,7 +42,9 @@ impl TransactionManager for XuguTransactionManager {
             if depth > 0 {
                 // 虚谷 v11 不支持 事务保存点的释放 RELEASE SAVEPOINT _sqlx_savepoint_1
                 // 所以忽略  RELEASE SAVEPOINT 的执行，只执行最后的的 COMMIT
-                if depth == 1 { conn.execute(&*commit_ansi_transaction_sql(depth)).await?; }
+                if depth == 1 {
+                    conn.execute(&*commit_ansi_transaction_sql(depth)).await?;
+                }
 
                 conn.inner.transaction_depth = depth - 1;
             }

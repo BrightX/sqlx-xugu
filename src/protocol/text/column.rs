@@ -644,10 +644,7 @@ pub(crate) struct ColumnDefinition {
     scale: i32,
 }
 
-fn split_bytes_into_ranges(
-    bytes: &Bytes,
-    delimiter: u8,
-) -> Vec<std::ops::Range<usize>> {
+fn split_bytes_into_ranges(bytes: &Bytes, delimiter: u8) -> Vec<std::ops::Range<usize>> {
     let mut ranges = Vec::new();
     let mut start = 0;
 
@@ -692,7 +689,8 @@ impl ColumnDefinition {
 }
 
 impl StreamDecode<ServerContext> for ColumnDefinition {
-    async fn decode_with<S: AsyncStreamExt>(stream: &mut S,
+    async fn decode_with<S: AsyncStreamExt>(
+        stream: &mut S,
         cnt: ServerContext,
     ) -> Result<Self, Error> {
         let schema;

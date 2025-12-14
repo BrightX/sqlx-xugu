@@ -1,3 +1,4 @@
+use crate::arguments::XuguArgumentValue;
 use crate::{Xugu, XuguTypeInfo, XuguValueRef};
 use sqlx_core::decode::Decode;
 use sqlx_core::encode::{Encode, IsNull};
@@ -5,7 +6,6 @@ use sqlx_core::error::BoxDynError;
 use sqlx_core::types::{Text, Type};
 use std::fmt::Display;
 use std::str::FromStr;
-use crate::arguments::XuguArgumentValue;
 
 impl<T> Type<Xugu> for Text<T> {
     fn type_info() -> XuguTypeInfo {

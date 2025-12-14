@@ -1,5 +1,6 @@
 use self::stream::XuguStream;
 use crate::protocol::statement::StmtClose;
+use crate::protocol::text::{OkPacket, Ping};
 use crate::statement::XuguStatementMetadata;
 use crate::{Xugu, XuguConnectOptions};
 use futures_core::future::BoxFuture;
@@ -9,7 +10,6 @@ use sqlx_core::transaction::Transaction;
 use sqlx_core::Error;
 use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
-use crate::protocol::text::{OkPacket, Ping};
 
 mod establish;
 mod executor;

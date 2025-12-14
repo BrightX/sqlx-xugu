@@ -23,9 +23,11 @@ impl XuguTypeInfo {
     #[doc(hidden)]
     pub fn __type_feature_gate(&self) -> Option<&'static str> {
         match self.r#type {
-            ColumnType::DATE | ColumnType::TIME | ColumnType::DATETIME | ColumnType::TIME_TZ | ColumnType::DATETIME_TZ => {
-                Some("time")
-            }
+            ColumnType::DATE
+            | ColumnType::TIME
+            | ColumnType::DATETIME
+            | ColumnType::TIME_TZ
+            | ColumnType::DATETIME_TZ => Some("time"),
 
             ColumnType::JSON => Some("json"),
             ColumnType::NUMERIC => Some("numeric"),
