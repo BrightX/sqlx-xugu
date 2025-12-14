@@ -39,6 +39,21 @@ impl Type<Xugu> for str {
                 | ColumnType::ROWID
                 | ColumnType::ROWVERSION
                 | ColumnType::ARRAY
+
+                // 几何类型 按字符串编解码
+                | ColumnType::POINT
+                | ColumnType::LSEG
+                | ColumnType::PATH
+                | ColumnType::BOX
+                | ColumnType::POLYGON
+                | ColumnType::LINE
+                | ColumnType::CIRCLE
+                | ColumnType::GEOMETRY
+                | ColumnType::GEOGRAPHY
+                | ColumnType::BOX2D
+                | ColumnType::BOX3D
+                | ColumnType::SPHEROID
+                | ColumnType::RASTER
         )
     }
 }

@@ -196,7 +196,7 @@ impl XuguConnection {
                     b'U' => {
                         // 批处理执行次数 / 批量更新次数
                         let up_int = self.inner.stream.read_i32().await?;
-                        println!("serverBatchCount / updateCount = {}", up_int);
+                        // println!("serverBatchCount / updateCount = {}", up_int);
 
                         let rows_affected = up_int as u64;
                         logger.increase_rows_affected(rows_affected);
@@ -211,7 +211,7 @@ impl XuguConnection {
                     b'D' => {
                         // 批处理执行次数 / 批量更新次数
                         let del_int = self.inner.stream.read_i32().await?;
-                        println!("serverBatchCount / updateCount = {}", del_int);
+                        // println!("serverBatchCount / updateCount = {}", del_int);
 
                         let rows_affected = del_int as u64;
                         logger.increase_rows_affected(rows_affected);
@@ -225,6 +225,7 @@ impl XuguConnection {
                     },
                     b'S' => {
                         let lob_id = self.inner.stream.read_i64().await?;
+                        // TODO lob
                         // getParamLob(lobId)
                         // sendLob(paramLob)
                         println!("lob_id: {}", lob_id);
@@ -243,6 +244,7 @@ impl XuguConnection {
                             let col_no = self.inner.stream.read_i32().await?;
                             if col_no >= 0 {
                                 let identity = self.inner.stream.read_bytes(8).await?;
+                                // TODO v302 rowid
                                 println!("identity: {:?}", identity);
                             }
                         }
@@ -253,12 +255,13 @@ impl XuguConnection {
                     b'L' => {
                         // filename
                         let filename = self.inner.stream.read_str().await?;
+                        // todo send file
                         // sendFile(filename);
                         println!("filename: {}", filename);
                         bt = self.next_byte().await?;
                     },
                     b'P' => {
-                        // prepare服务器返回参数/过程和函数返回值
+                        // todo prepare服务器返回参数/过程和函数返回值
                         let no = self.inner.stream.read_i32().await?;
                         let type_id = self.inner.stream.read_i32().await?;
                         let d_len = self.inner.stream.read_i32().await?;
@@ -270,7 +273,7 @@ impl XuguConnection {
                         bt = self.next_byte().await?;
                     },
                     b'O' => {
-                        // prepare服务器返回参数/过程和函数返回值
+                        // todo prepare服务器返回参数/过程和函数返回值
                         let type_id = self.inner.stream.read_i32().await?;
                         let d_len = self.inner.stream.read_i32().await?;
                         println!("type: {}, d_len: {}", type_id, d_len);
