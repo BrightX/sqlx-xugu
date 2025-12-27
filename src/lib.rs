@@ -54,3 +54,41 @@ impl_column_index_for_statement!(XuguStatement);
 
 // required because some databases have a different handling of NULL
 impl_encode_for_option!(Xugu);
+
+/// Convenience re-export of common traits.
+pub mod prelude {
+    pub use futures_core::future::BoxFuture;
+    pub use futures_core::stream::BoxStream;
+    pub use futures_util::TryStreamExt;
+
+    pub use sqlx_core::acquire::Acquire;
+    pub use sqlx_core::arguments::Arguments;
+    pub use sqlx_core::arguments::IntoArguments;
+    pub use sqlx_core::column::Column;
+    pub use sqlx_core::column::ColumnIndex;
+    pub use sqlx_core::connection::ConnectOptions;
+    pub use sqlx_core::connection::Connection;
+    pub use sqlx_core::decode::Decode;
+    pub use sqlx_core::encode::Encode;
+    pub use sqlx_core::error::DatabaseError;
+    pub use sqlx_core::error::Error;
+    pub use sqlx_core::error::Result;
+    pub use sqlx_core::executor::Executor;
+    pub use sqlx_core::from_row::FromRow;
+
+    pub use sqlx_core::query::query_with_result as __query_with_result;
+    pub use sqlx_core::query::{query, query_with};
+    pub use sqlx_core::query_as::{query_as, query_as_with};
+    pub use sqlx_core::query_builder::{self, QueryBuilder};
+    #[doc(hidden)]
+    pub use sqlx_core::query_scalar::query_scalar_with_result as __query_scalar_with_result;
+    pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
+    pub use sqlx_core::raw_sql::{raw_sql, RawSql};
+
+    pub use sqlx_core::row::Row;
+    pub use sqlx_core::statement::Statement;
+    pub use sqlx_core::type_info::TypeInfo;
+    pub use sqlx_core::types::Type;
+    pub use sqlx_core::value::Value;
+    pub use sqlx_core::value::ValueRef;
+}

@@ -20,6 +20,8 @@ json = ["sqlx-core/json", "serde"]
 any = ["sqlx-core/any"]
 offline = ["sqlx-core/offline", "serde/derive"]
 migrate = ["sqlx-core/migrate"]
+runtime-async-std = ["sqlx-core/_rt-async-std"]
+runtime-tokio = ["sqlx-core/_rt-tokio"]
 
 # Type Integration features
 bigdecimal = ["dep:bigdecimal", "sqlx-core/bigdecimal"]
