@@ -1,3 +1,4 @@
+pub(crate) mod message;
 mod server_context;
 pub(crate) mod statement;
 pub(crate) mod text;

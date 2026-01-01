@@ -120,8 +120,7 @@ impl XuguConnection {
     {
         let mut logger = QueryLogger::new(sql, self.inner.log_settings.clone());
 
-        // self.inner.stream.wait_until_ready().await?;
-        // self.inner.stream.waiting.push_back(Waiting::Result);
+        self.wait_until_ready().await?;
 
         Ok(try_stream! {
             // make a slot for the shared column data
@@ -169,28 +168,29 @@ impl XuguConnection {
                 (Arc::default(), true)
             };
 
+            self.inner.pending_ready_for_query_count += 1;
+
             let mut warnings = Vec::new();
             let mut error = None;
 
             let mut num_columns = 0;
 
-            let mut bt = self.next_byte().await?;
             loop {
+                let mut bt = self.next_byte().await?;
                 match bt {
                     b'E' | b'F' => {
                         let err = self.inner.stream.read_str().await?;
                         error = Some(err);
-                        bt = self.next_byte().await?;
                     },
                     b'W' | b'M' => {
                         // 读到服务器端返回消息用对话框抛出
                         // 警告和信息
                         let warn = self.inner.stream.read_str().await?;
                         warnings.push(warn);
-                        bt = self.next_byte().await?;
                     },
                     b'K' | b'<' => {
                         //命令结束 / 错误结束
+                        self.handle_ready_for_query().await?;
                         break;
                     },
                     b'U' => {
@@ -205,7 +205,6 @@ impl XuguConnection {
                             last_insert_id: None,
                         };
 
-                        bt = self.next_byte().await?;
                         r#yield!(Either::Left(done));
                     },
                     b'D' => {
@@ -220,7 +219,6 @@ impl XuguConnection {
                             last_insert_id: None,
                         };
 
-                        bt = self.next_byte().await?;
                         r#yield!(Either::Left(done));
                     },
                     b'S' => {
@@ -229,7 +227,6 @@ impl XuguConnection {
                         // getParamLob(lobId)
                         // sendLob(paramLob)
                         println!("lob_id: {}", lob_id);
-                        bt = self.next_byte().await?;
                     },
                     b'I' => {
                         let rowid = self.inner.stream.read_str().await?;
@@ -249,7 +246,6 @@ impl XuguConnection {
                             }
                         }
 
-                        bt = self.next_byte().await?;
                         r#yield!(Either::Left(done));
                     },
                     b'L' => {
@@ -258,7 +254,6 @@ impl XuguConnection {
                         // todo send file
                         // sendFile(filename);
                         println!("filename: {}", filename);
-                        bt = self.next_byte().await?;
                     },
                     b'P' => {
                         // todo prepare服务器返回参数/过程和函数返回值
@@ -270,7 +265,6 @@ impl XuguConnection {
                             let data = self.inner.stream.read_bytes(d_len as usize).await?;
                             println!("dat = {:?}", data);
                         }
-                        bt = self.next_byte().await?;
                     },
                     b'O' => {
                         // todo prepare服务器返回参数/过程和函数返回值
@@ -281,11 +275,11 @@ impl XuguConnection {
                             let data = self.inner.stream.read_bytes(d_len as usize).await?;
                             println!("dat = {:?}", data);
                         }
-                        bt = self.next_byte().await?;
                     },
                     b'A' => {
                         // 接收列数据
                         num_columns = self.inner.stream.read_i32().await?;
+                        self.inner.last_num_columns = num_columns as usize;
                         if needs_metadata {
                             column_names = Arc::new(recv_result_metadata(&mut self.inner.stream, num_columns as usize, Arc::make_mut(&mut columns)).await?);
                         } else {
@@ -295,7 +289,6 @@ impl XuguConnection {
 
                             recv_result_columns(&mut self.inner.stream, num_columns as usize, Arc::make_mut(&mut columns)).await?;
                         }
-                        bt = self.next_byte().await?;
                     },
                     b'R' => {
                         // 接收行数据
@@ -317,7 +310,6 @@ impl XuguConnection {
 
                         logger.increment_rows_returned();
 
-                        bt = self.next_byte().await?;
                         r#yield!(v);
                     },
                     _ => {

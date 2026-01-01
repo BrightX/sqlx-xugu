@@ -1,13 +1,18 @@
 use self::stream::XuguStream;
+use crate::io::AsyncStreamExt;
+use crate::protocol::message::*;
 use crate::protocol::statement::StmtClose;
 use crate::protocol::text::{OkPacket, Ping};
+use crate::protocol::ServerContext;
 use crate::statement::XuguStatementMetadata;
-use crate::{Xugu, XuguConnectOptions};
+use crate::{Xugu, XuguConnectOptions, XuguDatabaseError};
 use futures_core::future::BoxFuture;
+use futures_util::FutureExt;
+use log::Level;
 use sqlx_core::common::StatementCache;
 use sqlx_core::connection::{Connection, LogSettings};
 use sqlx_core::transaction::Transaction;
-use sqlx_core::Error;
+use sqlx_core::{err_protocol, Error};
 use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
 
@@ -30,6 +35,10 @@ pub(crate) struct XuguConnectionInner {
     // cache by query string to the statement id and metadata
     cache_statement: StatementCache<(u32, XuguStatementMetadata)>,
 
+    // number of ReadyForQuery messages that we are currently expecting
+    pub(crate) pending_ready_for_query_count: usize,
+    pub(crate) last_num_columns: usize,
+
     log_settings: LogSettings,
 
     st_id_gen: u32,
@@ -49,6 +58,91 @@ impl XuguConnectionInner {
 }
 
 impl XuguConnection {
+    // will return when the connection is ready for another query
+    pub(crate) async fn wait_until_ready(&mut self) -> Result<(), Error> {
+        if !self.inner.stream.write_buffer_mut().is_empty() {
+            self.inner.stream.flush().await?;
+        }
+
+        let mut num_columns = self.inner.last_num_columns;
+        while self.inner.pending_ready_for_query_count > 0 {
+            let message: ReceivedMessage = self.inner.stream.recv().await?;
+            let cnt = ServerContext::new(self.inner.stream.server_version);
+            match message.format {
+                BackendMessageFormat::ErrorResponse => {
+                    let err: ErrorResponse = message.decode(&mut self.inner.stream, cnt).await?;
+                    return Err(Error::Database(Box::new(XuguDatabaseError::from_str(
+                        &err.error,
+                    ))));
+                }
+                BackendMessageFormat::MessageResponse => {
+                    let notice: MessageResponse =
+                        message.decode(&mut self.inner.stream, cnt).await?;
+                    let (log_level, tracing_level) = (Level::Info, tracing::Level::INFO);
+                    let log_is_enabled = log::log_enabled!(
+                        target: "sqlx::xugu::notice",
+                        log_level
+                    ) || sqlx_core::private_tracing_dynamic_enabled!(
+                        target: "sqlx::xugu::notice",
+                        tracing_level
+                    );
+                    if log_is_enabled {
+                        sqlx_core::private_tracing_dynamic_event!(
+                            target: "sqlx::xugu::notice",
+                            tracing_level,
+                            message = notice.msg
+                        );
+                    }
+                }
+                BackendMessageFormat::RowDescription => {
+                    // 接收列数据
+                    let columns: RowDescription =
+                        message.decode(&mut self.inner.stream, cnt).await?;
+                    num_columns = columns.fields.len();
+                    self.inner.last_num_columns = num_columns;
+                }
+                BackendMessageFormat::DataRow => {
+                    // 接收行数据
+                    let _: DataRow = message.decode(&mut self.inner.stream, cnt).await?;
+                    for _ in 0..num_columns {
+                        let len = self.inner.stream.read_i32().await?;
+                        let _buf = self.inner.stream.read_bytes(len as usize).await?;
+                    }
+                }
+                BackendMessageFormat::ReadyForQuery => {
+                    let _: ReadyForQuery = message.decode(&mut self.inner.stream, cnt).await?;
+                    self.handle_ready_for_query().await?;
+                }
+                BackendMessageFormat::InsertResponse => {
+                    let _: InsertResponse = message.decode(&mut self.inner.stream, cnt).await?;
+                }
+                BackendMessageFormat::DeleteResponse => {
+                    let _: DeleteResponse = message.decode(&mut self.inner.stream, cnt).await?;
+                }
+                BackendMessageFormat::UpdateResponse => {
+                    let _: UpdateResponse = message.decode(&mut self.inner.stream, cnt).await?;
+                }
+                BackendMessageFormat::ParameterDescription => {
+                    let _: ParameterDescription =
+                        message.decode(&mut self.inner.stream, cnt).await?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    #[inline(always)]
+    async fn handle_ready_for_query(&mut self) -> Result<(), Error> {
+        self.inner.pending_ready_for_query_count = self
+            .inner
+            .pending_ready_for_query_count
+            .checked_sub(1)
+            .ok_or_else(|| err_protocol!("received more ReadyForQuery messages than expected"))?;
+
+        Ok(())
+    }
+
     pub(crate) fn in_transaction(&self) -> bool {
         // TODO in_transaction
         // self.inner
@@ -95,7 +189,7 @@ impl Connection for XuguConnection {
 
     fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
-            // self.inner.stream.wait_until_ready().await?;
+            self.wait_until_ready().await?;
             self.inner.stream.send_packet(Ping).await?;
             let _ok: OkPacket = self.inner.stream.recv().await?;
 
@@ -146,12 +240,7 @@ impl Connection for XuguConnection {
 
     #[doc(hidden)]
     fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        // self.inner.stream.wait_until_ready().boxed()
-        Box::pin(async {
-            self.inner.stream.before_flush();
-            self.inner.stream.flush().await?;
-            Ok(())
-        })
+        self.wait_until_ready().boxed()
     }
 
     #[doc(hidden)]
