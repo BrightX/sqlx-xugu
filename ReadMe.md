@@ -5,6 +5,7 @@
 [![crate](https://img.shields.io/crates/v/sqlx-xugu.svg?logo=rust)](https://crates.io/crates/sqlx-xugu)
 [![documentation](https://img.shields.io/badge/docs.rs-sqlx--xugu-66c2a5?labelColor=555555&logo=docs.rs)](https://docs.rs/sqlx-xugu)
 [![minimum rustc 1.60](https://img.shields.io/badge/rustc-1.60+-red.svg?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+![License](https://img.shields.io/crates/l/sqlx-xugu)
 
 > 基于 `sqlx` 的 `rust` 虚谷数据库驱动。
 > 
@@ -17,7 +18,7 @@
 ```toml
 # Cargo.toml
 sqlx = { version = "=0.8.6", features = ["runtime-tokio"] }
-sqlx-xugu = { version = "~0.8.6-0" }
+sqlx-xugu = { version = "~0.8.6-1" }
 
 ```
 
@@ -28,7 +29,7 @@ sqlx-xugu = { version = "~0.8.6-0" }
 ```toml
 # Cargo.toml
 sqlx = { version = "=0.8.6", features = ["runtime-tokio", "chrono", "uuid", "rust_decimal", "bigdecimal", "time"] }
-sqlx-xugu = { version = "~0.8.6-0", features = ["chrono", "uuid", "rust_decimal", "bigdecimal", "time"] }
+sqlx-xugu = { version = "~0.8.6-1", features = ["chrono", "uuid", "rust_decimal", "bigdecimal", "time"] }
 ```
 
 -   `uuid`: 添加对 UUID 的支持。
