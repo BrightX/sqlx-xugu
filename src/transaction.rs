@@ -66,16 +66,21 @@ impl TransactionManager for XuguTransactionManager {
         })
     }
 
+    /// starts a rollback operation
+    ///
+    /// what this does depends on the database but generally this means we queue a rollback
+    /// operation that will happen on the next asynchronous invocation of the underlying
+    /// connection (including if the connection is returned to a pool)
     fn start_rollback(conn: &mut XuguConnection) {
         let depth = conn.inner.transaction_depth;
 
         if depth > 0 {
-            // TODO
-            // conn.inner.stream.waiting.push_back(Waiting::Result);
             conn.inner
                 .stream
                 .write_packet(Query(&rollback_ansi_transaction_sql(depth)))
                 .expect("BUG: unexpected error queueing ROLLBACK");
+            // Queue a simple query (not prepared) to execute the next time this connection is used.
+            conn.inner.pending_ready_for_query_count += 1;
 
             conn.inner.transaction_depth = depth - 1;
         }
