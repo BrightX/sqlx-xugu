@@ -6,8 +6,7 @@ use crate::protocol::text::{ColumnFlags, Query};
 use crate::protocol::ServerContext;
 use crate::statement::{XuguStatement, XuguStatementMetadata};
 use crate::{
-    Xugu, XuguArguments, XuguConnection, XuguDatabaseError, XuguQueryResult, XuguRow,
-    XuguTypeInfo,
+    Xugu, XuguArguments, XuguConnection, XuguDatabaseError, XuguQueryResult, XuguRow, XuguTypeInfo,
 };
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -195,6 +194,8 @@ impl XuguConnection {
                         st_id: id,
                     })
                     .await?;
+                // for StmtClose
+                self.inner.pending_ready_for_query_count += 1;
 
                 let needs_metadata = metadata.column_names.is_empty();
                 (metadata.column_names, needs_metadata)

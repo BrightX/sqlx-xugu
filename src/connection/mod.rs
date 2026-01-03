@@ -220,6 +220,8 @@ impl Connection for XuguConnection {
 
     fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
+            self.wait_until_ready().await?;
+
             while let Some((statement_id, _)) = self.inner.cache_statement.remove_lru() {
                 self.inner
                     .stream
@@ -228,6 +230,8 @@ impl Connection for XuguConnection {
                         con_obj_name: &self.inner.con_obj_name,
                     })
                     .await?;
+
+                let _ok: OkPacket = self.inner.stream.recv().await?;
             }
 
             Ok(())
