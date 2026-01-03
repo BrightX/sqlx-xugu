@@ -42,32 +42,34 @@ pub enum BackendMessageFormat {
 
 impl BackendMessageFormat {
     pub fn try_from_u8(v: u8) -> Result<Self, Error> {
-        Ok(match v {
+        let t = match v {
             // 异常消息字符串
-            b'E' | b'F' => BackendMessageFormat::ErrorResponse,
+            b'E' | b'F' => Self::ErrorResponse,
             // 服务器端返回消息、警告和信息
-            b'W' | b'M' => BackendMessageFormat::MessageResponse,
+            b'W' | b'M' => Self::MessageResponse,
             // 命令结束 / 错误结束
-            b'K' | b'<' => BackendMessageFormat::ReadyForQuery,
+            b'K' | b'<' => Self::ReadyForQuery,
             // 插入 返回插入的 rowid
-            b'I' => BackendMessageFormat::InsertResponse,
+            b'I' => Self::InsertResponse,
             // 删除影响行数
-            b'D' => BackendMessageFormat::DeleteResponse,
+            b'D' => Self::DeleteResponse,
             // 更新影响行数
-            b'U' => BackendMessageFormat::UpdateResponse,
+            b'U' => Self::UpdateResponse,
             // 接收字段定义
-            b'A' => BackendMessageFormat::RowDescription,
+            b'A' => Self::RowDescription,
             // 读取服务器返回的参数信息
-            b'$' => BackendMessageFormat::ParameterDescription,
+            b'$' => Self::ParameterDescription,
             // 接收行数据
-            b'R' => BackendMessageFormat::DataRow,
+            b'R' => Self::DataRow,
             b'S' => return Err(err_protocol!("未实现 虚谷协议first byte: {}", v as char)),
             b'L' => return Err(err_protocol!("未实现 虚谷协议first byte: {}", v as char)),
             b'P' => return Err(err_protocol!("未实现 虚谷协议first byte: {}", v as char)),
             b'O' => return Err(err_protocol!("未实现 虚谷协议first byte: {}", v as char)),
 
             _ => return Err(err_protocol!("违反虚谷协议first byte: {}", v as char)),
-        })
+        };
+
+        Ok(t)
     }
 }
 
