@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::io::AsyncStreamExt;
 use crate::protocol::message::*;
 use crate::protocol::statement::{Execute as StatementExecute, Prepare, StmtClose};
-use crate::protocol::text::{ColumnFlags, Query};
+use crate::protocol::text::{ColumnFlags, OkPacket, Query};
 use crate::protocol::ServerContext;
 use crate::statement::{XuguStatement, XuguStatementMetadata};
 use crate::{
@@ -121,6 +121,8 @@ impl XuguConnection {
             .cache_statement
             .insert(sql, (id, metadata.clone()))
         {
+            // flush and wait until we are re-ready
+            self.wait_until_ready().await?;
             self.inner
                 .stream
                 .send_packet(StmtClose {
@@ -128,6 +130,9 @@ impl XuguConnection {
                     st_id: id,
                 })
                 .await?;
+
+            // for StmtClose
+            let _ok: OkPacket = self.inner.stream.recv().await?;
         }
 
         Ok((id, metadata))
@@ -156,9 +161,8 @@ impl XuguConnection {
         // make a slot for the shared column data
         // as long as a reference to a row is not held past one iteration, this enables us
         // to re-use this memory freely between result sets
-        let mut columns = Arc::new(Vec::new());
-
-        let (mut column_names, mut needs_metadata) = if let Some(arguments) = arguments {
+        let (mut column_names, mut columns, mut needs_metadata) = if let Some(arguments) = arguments
+        {
             if persistent && self.inner.cache_statement.is_enabled() {
                 let (id, metadata) = self.get_or_prepare_statement(sql).await?;
 
@@ -173,7 +177,7 @@ impl XuguConnection {
                     .await?;
 
                 let needs_metadata = metadata.column_names.is_empty();
-                (metadata.column_names, needs_metadata)
+                (metadata.column_names, metadata.columns, needs_metadata)
             } else {
                 let (id, metadata) = self.prepare_statement(sql).await?;
 
@@ -198,12 +202,12 @@ impl XuguConnection {
                 self.inner.pending_ready_for_query_count += 1;
 
                 let needs_metadata = metadata.column_names.is_empty();
-                (metadata.column_names, needs_metadata)
+                (metadata.column_names, metadata.columns, needs_metadata)
             }
         } else {
             self.inner.stream.send_packet(Query(sql)).await?;
 
-            (Arc::default(), true)
+            (Arc::default(), Arc::default(), true)
         };
 
         self.inner.pending_ready_for_query_count += 1;
@@ -391,7 +395,7 @@ impl<'c> Executor<'c> for &'c mut XuguConnection {
         'c: 'e,
     {
         Box::pin(async move {
-            // self.inner.stream.wait_until_ready().await?;
+            self.wait_until_ready().await?;
 
             let metadata = if self.inner.cache_statement.is_enabled() {
                 self.get_or_prepare_statement(sql).await?.1
@@ -405,6 +409,8 @@ impl<'c> Executor<'c> for &'c mut XuguConnection {
                         st_id: id,
                     })
                     .await?;
+                // for StmtClose
+                let _ok: OkPacket = self.inner.stream.recv().await?;
 
                 metadata
             };
@@ -426,7 +432,7 @@ impl<'c> Executor<'c> for &'c mut XuguConnection {
         'c: 'e,
     {
         Box::pin(async move {
-            // self.inner.stream.wait_until_ready().await?;
+            self.wait_until_ready().await?;
 
             let (id, metadata) = self.prepare_statement(sql).await?;
 
@@ -437,6 +443,8 @@ impl<'c> Executor<'c> for &'c mut XuguConnection {
                     st_id: id,
                 })
                 .await?;
+            // for StmtClose
+            let _ok: OkPacket = self.inner.stream.recv().await?;
 
             let columns = (*metadata.columns).clone();
 
