@@ -1,22 +1,23 @@
-use super::XuguStream;
 use crate::error::Error;
 use crate::io::AsyncStreamExt;
-use crate::protocol::statement::{Execute as StatementExecute, Prepare, PrepareOk, StmtClose};
-use crate::protocol::text::{ColumnDefinition, ColumnFlags, Query};
+use crate::protocol::message::*;
+use crate::protocol::statement::{Execute as StatementExecute, Prepare, StmtClose};
+use crate::protocol::text::{ColumnFlags, Query};
+use crate::protocol::ServerContext;
 use crate::statement::{XuguStatement, XuguStatementMetadata};
 use crate::{
-    Xugu, XuguArguments, XuguColumn, XuguConnection, XuguDatabaseError, XuguQueryResult, XuguRow,
+    Xugu, XuguArguments, XuguConnection, XuguDatabaseError, XuguQueryResult, XuguRow,
     XuguTypeInfo,
 };
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_core::Stream;
 use futures_util::TryStreamExt;
+use log::Level;
 use sqlx_core::describe::Describe;
 use sqlx_core::executor::{Execute, Executor};
-use sqlx_core::ext::ustr::UStr;
 use sqlx_core::logger::QueryLogger;
-use sqlx_core::{err_protocol, try_stream, Either, HashMap};
+use sqlx_core::{try_stream, Either, HashMap};
 use std::{borrow::Cow, pin::pin, sync::Arc};
 
 impl XuguConnection {
@@ -24,6 +25,9 @@ impl XuguConnection {
         &mut self,
         sql: &str,
     ) -> Result<(u32, XuguStatementMetadata), Error> {
+        // flush and wait until we are re-ready
+        self.wait_until_ready().await?;
+
         let id = self.inner.gen_st_id();
         self.inner
             .stream
@@ -34,34 +38,66 @@ impl XuguConnection {
             })
             .await?;
 
-        let ok: PrepareOk = self.inner.stream.recv().await?;
-
+        let mut error = None;
         let mut columns = Vec::new();
+        let mut column_names = HashMap::new();
+        let mut params = Vec::new();
 
-        let column_names = if !ok.columns.is_empty() {
-            let num_columns = ok.columns.len();
-
-            let mut column_names = HashMap::with_capacity(num_columns);
-
-            for ordinal in 0..num_columns {
-                let def = &ok.columns[ordinal];
-
-                let column = recv_next_result_column(&def, ordinal)?;
-
-                column_names.insert(column.name.clone(), ordinal);
-                // 列名不区分大小写，将大写和小写列名都加入
-                column_names.insert(column.name.to_uppercase().into(), ordinal);
-                column_names.insert(column.name.to_lowercase().into(), ordinal);
-                columns.push(column);
+        loop {
+            let message: ReceivedMessage = self.inner.stream.recv().await?;
+            let cnt = ServerContext::new(self.inner.stream.server_version);
+            match message.format {
+                BackendMessageFormat::ErrorResponse => {
+                    let err: ErrorResponse = message.decode(&mut self.inner.stream, cnt).await?;
+                    error = Some(err.error);
+                }
+                BackendMessageFormat::MessageResponse => {
+                    // 读到服务器端返回消息用对话框抛出
+                    // 警告和信息
+                    let notice: MessageResponse =
+                        message.decode(&mut self.inner.stream, cnt).await?;
+                    let (log_level, tracing_level) = (Level::Info, tracing::Level::INFO);
+                    let log_is_enabled = log::log_enabled!(
+                        target: "sqlx::xugu::notice",
+                        log_level
+                    ) || sqlx_core::private_tracing_dynamic_enabled!(
+                        target: "sqlx::xugu::notice",
+                        tracing_level
+                    );
+                    if log_is_enabled {
+                        sqlx_core::private_tracing_dynamic_event!(
+                            target: "sqlx::xugu::notice",
+                            tracing_level,
+                            message = notice.msg
+                        );
+                    }
+                }
+                BackendMessageFormat::ReadyForQuery => {
+                    let _: ReadyForQuery = message.decode(&mut self.inner.stream, cnt).await?;
+                    break;
+                }
+                BackendMessageFormat::RowDescription => {
+                    let row_columns: RowDescription =
+                        message.decode(&mut self.inner.stream, cnt).await?;
+                    (columns, column_names) = row_columns.convert_columns()?;
+                }
+                BackendMessageFormat::ParameterDescription => {
+                    let param_def: ParameterDescription =
+                        message.decode(&mut self.inner.stream, cnt).await?;
+                    params = param_def.params;
+                }
+                _ => {
+                    break;
+                }
             }
+        }
 
-            column_names
-        } else {
-            Default::default()
-        };
+        if let Some(err) = error {
+            return Err(Error::Database(Box::new(XuguDatabaseError::from_str(&err))));
+        }
 
         let metadata = XuguStatementMetadata {
-            parameters: Arc::new(ok.params),
+            parameters: Arc::new(params),
             columns: Arc::new(columns),
             column_names: Arc::new(column_names),
         };
@@ -98,10 +134,6 @@ impl XuguConnection {
         Ok((id, metadata))
     }
 
-    async fn next_byte(&mut self) -> Result<u8, Error> {
-        self.inner.stream.read_u8().await
-    }
-
     ///
     ///
     /// # Arguments
@@ -122,182 +154,153 @@ impl XuguConnection {
 
         self.wait_until_ready().await?;
 
-        Ok(try_stream! {
-            // make a slot for the shared column data
-            // as long as a reference to a row is not held past one iteration, this enables us
-            // to re-use this memory freely between result sets
-            let mut columns = Arc::new(Vec::new());
+        // make a slot for the shared column data
+        // as long as a reference to a row is not held past one iteration, this enables us
+        // to re-use this memory freely between result sets
+        let mut columns = Arc::new(Vec::new());
 
-            let (mut column_names, mut needs_metadata) = if let Some(arguments) = arguments {
-                if persistent && self.inner.cache_statement.is_enabled() {
-                    let (id, metadata) = self
-                        .get_or_prepare_statement(sql)
-                        .await?;
+        let (mut column_names, mut needs_metadata) = if let Some(arguments) = arguments {
+            if persistent && self.inner.cache_statement.is_enabled() {
+                let (id, metadata) = self.get_or_prepare_statement(sql).await?;
 
-                    self.inner.stream
-                        .send_packet(StatementExecute {
-                            con_obj_name: &self.inner.con_obj_name, st_id: id,
-                            arguments: &arguments,
-                            params: &metadata.parameters,
-                        })
-                        .await?;
+                self.inner
+                    .stream
+                    .send_packet(StatementExecute {
+                        con_obj_name: &self.inner.con_obj_name,
+                        st_id: id,
+                        arguments: &arguments,
+                        params: &metadata.parameters,
+                    })
+                    .await?;
 
-                    let needs_metadata = metadata.column_names.is_empty();
-                    (metadata.column_names, needs_metadata)
-                } else {
-                    let (id, metadata) = self
-                        .prepare_statement(sql)
-                        .await?;
-
-                    self.inner.stream
-                        .send_packet(StatementExecute {
-                            con_obj_name: &self.inner.con_obj_name, st_id: id,
-                            arguments: &arguments,
-                            params: &metadata.parameters,
-                        })
-                        .await?;
-
-                    self.inner.stream.send_packet(StmtClose {con_obj_name: &self.inner.con_obj_name, st_id: id }).await?;
-
-                    let needs_metadata = metadata.column_names.is_empty();
-                    (metadata.column_names, needs_metadata)
-                }
+                let needs_metadata = metadata.column_names.is_empty();
+                (metadata.column_names, needs_metadata)
             } else {
-                self.inner.stream.send_packet(Query(sql)).await?;
+                let (id, metadata) = self.prepare_statement(sql).await?;
 
-                (Arc::default(), true)
-            };
+                self.inner
+                    .stream
+                    .send_packet(StatementExecute {
+                        con_obj_name: &self.inner.con_obj_name,
+                        st_id: id,
+                        arguments: &arguments,
+                        params: &metadata.parameters,
+                    })
+                    .await?;
 
-            self.inner.pending_ready_for_query_count += 1;
+                self.inner
+                    .stream
+                    .send_packet(StmtClose {
+                        con_obj_name: &self.inner.con_obj_name,
+                        st_id: id,
+                    })
+                    .await?;
 
-            let mut warnings = Vec::new();
-            let mut error = None;
+                let needs_metadata = metadata.column_names.is_empty();
+                (metadata.column_names, needs_metadata)
+            }
+        } else {
+            self.inner.stream.send_packet(Query(sql)).await?;
 
-            let mut num_columns = 0;
+            (Arc::default(), true)
+        };
 
+        self.inner.pending_ready_for_query_count += 1;
+
+        let mut error = None;
+
+        let mut num_columns = 0;
+
+        Ok(try_stream! {
             loop {
-                let mut bt = self.next_byte().await?;
-                match bt {
-                    b'E' | b'F' => {
-                        let err = self.inner.stream.read_str().await?;
-                        error = Some(err);
+                let message: ReceivedMessage = self.inner.stream.recv().await?;
+                let cnt = ServerContext::new(self.inner.stream.server_version);
+                match message.format {
+                    BackendMessageFormat::ErrorResponse => {
+                        let err: ErrorResponse = message.decode(&mut self.inner.stream, cnt).await?;
+                        error = Some(err.error);
                     },
-                    b'W' | b'M' => {
+                    BackendMessageFormat::MessageResponse => {
                         // 读到服务器端返回消息用对话框抛出
                         // 警告和信息
-                        let warn = self.inner.stream.read_str().await?;
-                        warnings.push(warn);
+                        let notice: MessageResponse = message.decode(&mut self.inner.stream, cnt).await?;
+                        let (log_level, tracing_level) = (Level::Info, tracing::Level::INFO);
+                        let log_is_enabled = log::log_enabled!(
+                            target: "sqlx::xugu::notice",
+                            log_level
+                        ) || sqlx_core::private_tracing_dynamic_enabled!(
+                            target: "sqlx::xugu::notice",
+                            tracing_level
+                        );
+                        if log_is_enabled {
+                            sqlx_core::private_tracing_dynamic_event!(
+                                target: "sqlx::xugu::notice",
+                                tracing_level,
+                                message = notice.msg
+                            );
+                        }
                     },
-                    b'K' | b'<' => {
+                    BackendMessageFormat::ReadyForQuery => {
                         //命令结束 / 错误结束
+                        let _: ReadyForQuery = message.decode(&mut self.inner.stream, cnt).await?;
                         self.handle_ready_for_query().await?;
                         break;
                     },
-                    b'U' => {
-                        // 批处理执行次数 / 批量更新次数
-                        let up_int = self.inner.stream.read_i32().await?;
-                        // println!("serverBatchCount / updateCount = {}", up_int);
-
-                        let rows_affected = up_int as u64;
-                        logger.increase_rows_affected(rows_affected);
-                        let done = XuguQueryResult {
-                            rows_affected,
-                            last_insert_id: None,
-                        };
-
-                        r#yield!(Either::Left(done));
-                    },
-                    b'D' => {
-                        // 批处理执行次数 / 批量更新次数
-                        let del_int = self.inner.stream.read_i32().await?;
-                        // println!("serverBatchCount / updateCount = {}", del_int);
-
-                        let rows_affected = del_int as u64;
-                        logger.increase_rows_affected(rows_affected);
-                        let done = XuguQueryResult {
-                            rows_affected,
-                            last_insert_id: None,
-                        };
-
-                        r#yield!(Either::Left(done));
-                    },
-                    b'S' => {
-                        let lob_id = self.inner.stream.read_i64().await?;
-                        // TODO lob
-                        // getParamLob(lobId)
-                        // sendLob(paramLob)
-                        println!("lob_id: {}", lob_id);
-                    },
-                    b'I' => {
-                        let rowid = self.inner.stream.read_str().await?;
-
+                    BackendMessageFormat::InsertResponse => {
+                        let res: InsertResponse = message.decode(&mut self.inner.stream, cnt).await?;
                         let rows_affected = 1;
                         logger.increase_rows_affected(rows_affected);
                         let done = XuguQueryResult {
                             rows_affected,
-                            last_insert_id: Some(rowid),
+                            last_insert_id: Some(res.rowid),
                         };
-                        if self.inner.stream.server_version >= 302 {
-                            let col_no = self.inner.stream.read_i32().await?;
-                            if col_no >= 0 {
-                                let identity = self.inner.stream.read_bytes(8).await?;
-                                // TODO v302 rowid
-                                println!("identity: {:?}", identity);
-                            }
-                        }
-
                         r#yield!(Either::Left(done));
                     },
-                    b'L' => {
-                        // filename
-                        let filename = self.inner.stream.read_str().await?;
-                        // todo send file
-                        // sendFile(filename);
-                        println!("filename: {}", filename);
+                    BackendMessageFormat::DeleteResponse => {
+                        let res: DeleteResponse = message.decode(&mut self.inner.stream, cnt).await?;
+                        let rows_affected = res.rows_affected as u64;
+                        logger.increase_rows_affected(rows_affected);
+                        let done = XuguQueryResult {
+                            rows_affected,
+                            last_insert_id: None,
+                        };
+                        r#yield!(Either::Left(done));
                     },
-                    b'P' => {
-                        // todo prepare服务器返回参数/过程和函数返回值
-                        let no = self.inner.stream.read_i32().await?;
-                        let type_id = self.inner.stream.read_i32().await?;
-                        let d_len = self.inner.stream.read_i32().await?;
-                        println!("no: {}, type: {}, d_len: {}", no, type_id, d_len);
-                        if d_len > 0 {
-                            let data = self.inner.stream.read_bytes(d_len as usize).await?;
-                            println!("dat = {:?}", data);
-                        }
+                    BackendMessageFormat::UpdateResponse => {
+                        let res: UpdateResponse = message.decode(&mut self.inner.stream, cnt).await?;
+                        let rows_affected = res.rows_affected as u64;
+                        logger.increase_rows_affected(rows_affected);
+                        let done = XuguQueryResult {
+                            rows_affected,
+                            last_insert_id: None,
+                        };
+                        r#yield!(Either::Left(done));
                     },
-                    b'O' => {
-                        // todo prepare服务器返回参数/过程和函数返回值
-                        let type_id = self.inner.stream.read_i32().await?;
-                        let d_len = self.inner.stream.read_i32().await?;
-                        println!("type: {}, d_len: {}", type_id, d_len);
-                        if d_len > 0 {
-                            let data = self.inner.stream.read_bytes(d_len as usize).await?;
-                            println!("dat = {:?}", data);
-                        }
-                    },
-                    b'A' => {
+                    BackendMessageFormat::RowDescription => {
                         // 接收列数据
-                        num_columns = self.inner.stream.read_i32().await?;
-                        self.inner.last_num_columns = num_columns as usize;
+                        let row_columns: RowDescription = message.decode(&mut self.inner.stream, cnt).await?;
+                        num_columns = row_columns.fields.len();
+                        self.inner.last_num_columns = num_columns;
                         if needs_metadata {
-                            column_names = Arc::new(recv_result_metadata(&mut self.inner.stream, num_columns as usize, Arc::make_mut(&mut columns)).await?);
+                            let (columns_c, column_names_c) = row_columns.convert_columns()?;
+                            columns = Arc::new(columns_c);
+                            column_names = Arc::new(column_names_c);
                         } else {
                             // next time we hit here, it'll be a new result set and we'll need the
                             // full metadata
                             needs_metadata = true;
-
-                            recv_result_columns(&mut self.inner.stream, num_columns as usize, Arc::make_mut(&mut columns)).await?;
                         }
                     },
-                    b'R' => {
+                    BackendMessageFormat::ParameterDescription => {
+                        let _: ParameterDescription = message.decode(&mut self.inner.stream, cnt).await?;
+                    },
+                    BackendMessageFormat::DataRow => {
                         // 接收行数据
-                        let mut row = Vec::with_capacity(num_columns as usize);
+                        let _: DataRow = message.decode(&mut self.inner.stream, cnt).await?;
+                        let mut row = Vec::with_capacity(num_columns);
                         for _ in 0..num_columns {
                             let len = self.inner.stream.read_i32().await?;
-                            // println!("len: {}", len);
                             let buf = self.inner.stream.read_bytes(len as usize).await?;
-                            // println!("buf = {:?}", buf);
                             row.push(buf);
                         }
                         let row = Arc::new(row);
@@ -311,10 +314,7 @@ impl XuguConnection {
                         logger.increment_rows_returned();
 
                         r#yield!(v);
-                    },
-                    _ => {
-                        return Err(err_protocol!("违反虚谷协议first byte: {}", bt as char));
-                    },
+                    }
                 }
             }
 
@@ -454,62 +454,4 @@ impl<'c> Executor<'c> for &'c mut XuguConnection {
             })
         })
     }
-}
-
-async fn recv_result_columns(
-    stream: &mut XuguStream,
-    num_columns: usize,
-    columns: &mut Vec<XuguColumn>,
-) -> Result<(), Error> {
-    columns.clear();
-    columns.reserve(num_columns);
-
-    for ordinal in 0..num_columns {
-        columns.push(recv_next_result_column(&stream.recv().await?, ordinal)?);
-    }
-
-    Ok(())
-}
-
-fn recv_next_result_column(def: &ColumnDefinition, ordinal: usize) -> Result<XuguColumn, Error> {
-    // if the alias is empty, use the alias
-    // only then use the name
-    let name = match (def.name()?, def.alias()?) {
-        (_, alias) if !alias.is_empty() => UStr::new(alias),
-        (name, _) => UStr::new(name),
-    };
-
-    let type_info = XuguTypeInfo::from_column(def);
-
-    Ok(XuguColumn {
-        name,
-        type_info,
-        ordinal,
-        flags: Some(def.flags),
-    })
-}
-
-async fn recv_result_metadata(
-    stream: &mut XuguStream,
-    num_columns: usize,
-    columns: &mut Vec<XuguColumn>,
-) -> Result<HashMap<UStr, usize>, Error> {
-    // the result-set metadata is primarily a listing of each output
-    // column in the result-set
-
-    let mut column_names = HashMap::with_capacity(num_columns);
-
-    columns.clear();
-    columns.reserve(num_columns);
-
-    for ordinal in 0..num_columns {
-        let def: ColumnDefinition = stream.recv().await?;
-
-        let column = recv_next_result_column(&def, ordinal)?;
-
-        column_names.insert(column.name.clone(), ordinal);
-        columns.push(column);
-    }
-
-    Ok(column_names)
 }

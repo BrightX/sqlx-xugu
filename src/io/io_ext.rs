@@ -3,6 +3,7 @@ use sqlx_core::Error;
 
 type Result<T> = std::result::Result<T, Error>;
 
+#[allow(dead_code)]
 pub trait AsyncStreamExt {
     async fn read_u8(&mut self) -> Result<u8>;
     async fn read_u16(&mut self) -> Result<u16>;
