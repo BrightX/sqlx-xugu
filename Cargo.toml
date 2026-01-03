@@ -1,6 +1,6 @@
 [package]
 name = "sqlx-xugu"
-version = "0.8.6-0"
+version = "0.8.6-1"
 edition = "2021"
 repository = "https://github.com/BrightX/sqlx-xugu"
 description = "Xugu driver implementation for SQLx. Not for direct use; see the `sqlx` crate for details."
