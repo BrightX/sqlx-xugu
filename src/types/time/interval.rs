@@ -1,6 +1,5 @@
 use crate::arguments::XuguArgumentValue;
 use crate::protocol::text::ColumnType;
-use crate::types::MICROS_PER_DAY_F;
 use crate::{Xugu, XuguTypeInfo, XuguValueRef};
 use bytes::Buf;
 use sqlx_core::decode::Decode;
@@ -9,6 +8,9 @@ use sqlx_core::error::BoxDynError;
 use sqlx_core::types::Type;
 use std::borrow::Cow;
 use time::Duration;
+
+/// The number of microseconds per in days.
+const MICROS_PER_DAY_F: f64 = 86_400_000_000.0;
 
 impl Type<Xugu> for Duration {
     fn type_info() -> XuguTypeInfo {
