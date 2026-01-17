@@ -7,6 +7,9 @@ mod str;
 mod text;
 mod uint;
 
+/// 简单空间类型
+mod geometry;
+
 #[cfg(feature = "json")]
 mod json;
 
@@ -24,3 +27,5 @@ mod time;
 
 #[cfg(feature = "uuid")]
 mod uuid;
+
+pub use geometry::*;
