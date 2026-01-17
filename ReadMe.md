@@ -18,7 +18,7 @@
 ```toml
 # Cargo.toml
 sqlx = { version = "=0.8.6", features = ["runtime-tokio"] }
-sqlx-xugu = { version = "~0.8.6-1" }
+sqlx-xugu = { version = "0.8.6-2" }
 
 ```
 
@@ -29,7 +29,7 @@ sqlx-xugu = { version = "~0.8.6-1" }
 ```toml
 # Cargo.toml
 sqlx = { version = "=0.8.6", features = ["runtime-tokio", "chrono", "uuid", "rust_decimal", "bigdecimal", "time"] }
-sqlx-xugu = { version = "~0.8.6-1", features = ["chrono", "uuid", "rust_decimal", "bigdecimal", "time"] }
+sqlx-xugu = { version = "0.8.6-2", features = ["chrono", "uuid", "rust_decimal", "bigdecimal", "time"] }
 ```
 
 -   `uuid`: 添加对 UUID 的支持。
