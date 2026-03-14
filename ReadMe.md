@@ -111,28 +111,29 @@ sqlx-xugu 驱动url格式，支持以下几种
 
 #### 连接参数
 
-| 参数名             | 说明                                                                                                                         | 初始值                |
-|:----------------|:---------------------------------------------------------------------------------------------------------------------------|:-------------------|
-| database        | 数据库名                                                                                                                       |                    |
-| user            | 用户名                                                                                                                        |                    |
-| password        | 用户密码                                                                                                                       |                    |
-| version         | 服务器版本                                                                                                                      | 301                |
-| encryptor       | 数据库解密密钥                                                                                                                    |                    |
-| charset         | 客户端字符集(**utf8**或**gbk**)                                                                                                   | utf8               |
-| lob_ret         | 大对象返回方式                                                                                                                    |                    |
-| time_zone       | 客户端时区                                                                                                                      |                    |
-| iso_level       | 事务隔离级别                                                                                                                     | READ COMMITTED读已提交 |
-| lock_timeout    | 最大加锁等候时间                                                                                                                   |                    |
-| auto_commit     | 是否自动提交                                                                                                                     | on                 |
-| return_rowid    | 是否返回**rowid**                                                                                                              | false              |
-| return_schema   | 查询**SQL**是否返回模式信息（此参数存在一个疑问）                                                                                               | on                 |
-| identity_mode   | 数据库服务端自增长使用模式（**DEFAULT**：**default**自增,**NULL_AS_AUTO_INCREMENT**：**NULL**自增,**ZERO_AS_AUTO_INCREMENT**：**0**和**NULL**自增） |                    |
-| keyword_filter  | 数据库连接配置连接上需要开放的关键字串，已逗号分隔，例如**TABLE,FUNCTION,CONSTANT**                                                                    |                    |
-| disable_binlog  | 不记载**binlog**日志                                                                                                            |                    |
-| current_schema  | 指定连接的模式名                                                                                                                   |                    |
-| compatible_mode | 适配其他数据库(**MySQL/ORACLE/PostgreSQL**)                                                                                       | NONE               |
-| use_ssl         | 是否开启传输数据加密保护 `on`: 启用加密，`off`: 禁用加密                                                                                        | off                |
-| ssl             | 同上 `ssl=ssl`: 启用加密，`ssl=nssl`: 禁用加密                                                                                        | nssl               |
+| 参数名                       | 说明                                                                                                                         | 初始值                |
+|:--------------------------|:---------------------------------------------------------------------------------------------------------------------------|:-------------------|
+| database                  | 数据库名                                                                                                                       |                    |
+| user                      | 用户名                                                                                                                        |                    |
+| password                  | 用户密码                                                                                                                       |                    |
+| version                   | 服务器版本                                                                                                                      | 301                |
+| encryptor                 | 数据库解密密钥                                                                                                                    |                    |
+| charset                   | 客户端字符集(**utf8**或**gbk**)                                                                                                   | utf8               |
+| lob_ret                   | 大对象返回方式                                                                                                                    |                    |
+| time_zone                 | 客户端时区                                                                                                                      |                    |
+| iso_level                 | 事务隔离级别                                                                                                                     | READ COMMITTED读已提交 |
+| lock_timeout              | 最大加锁等候时间                                                                                                                   |                    |
+| auto_commit               | 是否自动提交                                                                                                                     | on                 |
+| return_rowid              | 是否返回**rowid**                                                                                                              | false              |
+| return_schema             | 查询**SQL**是否返回模式信息（此参数存在一个疑问）                                                                                               | on                 |
+| identity_mode             | 数据库服务端自增长使用模式（**DEFAULT**：**default**自增,**NULL_AS_AUTO_INCREMENT**：**NULL**自增,**ZERO_AS_AUTO_INCREMENT**：**0**和**NULL**自增） |                    |
+| keyword_filter            | 数据库连接配置连接上需要开放的关键字串，已逗号分隔，例如**TABLE,FUNCTION,CONSTANT**                                                                    |                    |
+| disable_binlog            | 不记载**binlog**日志                                                                                                            |                    |
+| current_schema            | 指定连接的模式名                                                                                                                   |                    |
+| compatible_mode           | 适配其他数据库(**MySQL/ORACLE/PostgreSQL**)                                                                                       | NONE               |
+| use_ssl                   | 是否开启传输数据加密保护 `on`: 启用加密，`off`: 禁用加密                                                                                        | off                |
+| ssl                       | 同上 `ssl=ssl`: 启用加密，`ssl=nssl`: 禁用加密                                                                                        | nssl               |
+| statement-cache-capacity  | 单个连接会话上的最大prepared语句数（max_prepare_num） 取值范围 `[100, 2097152]`，不要超过数据库设置的值 `show max_prepare_num;`            | 100                |
 
 ### 更多请参考 `sqlx` 相关文档
 

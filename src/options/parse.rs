@@ -85,6 +85,13 @@ impl XuguConnectOptions {
                     options = options.use_ssl(parse_bool(&value, false))
                 }
                 "ssl" if value.eq("ssl") => options = options.use_ssl(true),
+                "statement-cache-capacity"
+                | "statement_cache_capacity"
+                | "max-prepare-num"
+                | "max_prepare_num" => {
+                    options =
+                        options.statement_cache_capacity(value.parse().map_err(Error::config)?);
+                }
 
                 _ => {}
             }
@@ -152,6 +159,11 @@ impl XuguConnectOptions {
         }
         url.query_pairs_mut()
             .append_pair("use_ssl", bool2url(self.use_ssl));
+
+        url.query_pairs_mut().append_pair(
+            "statement-cache-capacity",
+            &self.statement_cache_capacity.to_string(),
+        );
 
         url
     }

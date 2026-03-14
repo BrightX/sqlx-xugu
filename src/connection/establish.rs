@@ -12,7 +12,7 @@ impl XuguConnection {
             stream,
             transaction_depth: 0,
             next_statement_id: StatementId::NAMED_START,
-            cache_statement: StatementCache::new(1024),
+            cache_statement: StatementCache::new(options.statement_cache_capacity),
             pending_ready_for_query_count: 0,
             last_num_columns: 0,
             log_settings: options.log_settings.clone(),
