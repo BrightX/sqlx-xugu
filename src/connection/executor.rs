@@ -1,3 +1,4 @@
+use crate::connection::StatementId;
 use crate::error::Error;
 use crate::io::AsyncStreamExt;
 use crate::protocol::message::*;
@@ -23,7 +24,7 @@ impl XuguConnection {
     async fn prepare_statement<'c>(
         &mut self,
         sql: &str,
-    ) -> Result<(u32, XuguStatementMetadata), Error> {
+    ) -> Result<(StatementId, XuguStatementMetadata), Error> {
         // flush and wait until we are re-ready
         self.wait_until_ready().await?;
 
@@ -32,7 +33,6 @@ impl XuguConnection {
             .stream
             .send_packet(Prepare {
                 query: sql,
-                con_obj_name: &self.inner.con_obj_name,
                 st_id: id,
             })
             .await?;
@@ -107,7 +107,7 @@ impl XuguConnection {
     async fn get_or_prepare_statement<'c>(
         &mut self,
         sql: &str,
-    ) -> Result<(u32, XuguStatementMetadata), Error> {
+    ) -> Result<(StatementId, XuguStatementMetadata), Error> {
         if let Some(statement) = self.inner.cache_statement.get_mut(sql) {
             // <XuguStatementMetadata> is internally reference-counted
             return Ok((*statement).clone());
@@ -123,13 +123,7 @@ impl XuguConnection {
         {
             // flush and wait until we are re-ready
             self.wait_until_ready().await?;
-            self.inner
-                .stream
-                .send_packet(StmtClose {
-                    con_obj_name: &self.inner.con_obj_name,
-                    st_id: id,
-                })
-                .await?;
+            self.inner.stream.send_packet(StmtClose(id)).await?;
 
             // for StmtClose
             let _ok: OkPacket = self.inner.stream.recv().await?;
@@ -169,7 +163,6 @@ impl XuguConnection {
                 self.inner
                     .stream
                     .send_packet(StatementExecute {
-                        con_obj_name: &self.inner.con_obj_name,
                         st_id: id,
                         arguments: &arguments,
                         params: &metadata.parameters,
@@ -184,20 +177,13 @@ impl XuguConnection {
                 self.inner
                     .stream
                     .send_packet(StatementExecute {
-                        con_obj_name: &self.inner.con_obj_name,
                         st_id: id,
                         arguments: &arguments,
                         params: &metadata.parameters,
                     })
                     .await?;
 
-                self.inner
-                    .stream
-                    .send_packet(StmtClose {
-                        con_obj_name: &self.inner.con_obj_name,
-                        st_id: id,
-                    })
-                    .await?;
+                self.inner.stream.send_packet(StmtClose(id)).await?;
                 // for StmtClose
                 self.inner.pending_ready_for_query_count += 1;
 
@@ -402,13 +388,7 @@ impl<'c> Executor<'c> for &'c mut XuguConnection {
             } else {
                 let (id, metadata) = self.prepare_statement(sql).await?;
 
-                self.inner
-                    .stream
-                    .send_packet(StmtClose {
-                        con_obj_name: &self.inner.con_obj_name,
-                        st_id: id,
-                    })
-                    .await?;
+                self.inner.stream.send_packet(StmtClose(id)).await?;
                 // for StmtClose
                 let _ok: OkPacket = self.inner.stream.recv().await?;
 
@@ -436,13 +416,7 @@ impl<'c> Executor<'c> for &'c mut XuguConnection {
 
             let (id, metadata) = self.prepare_statement(sql).await?;
 
-            self.inner
-                .stream
-                .send_packet(StmtClose {
-                    con_obj_name: &self.inner.con_obj_name,
-                    st_id: id,
-                })
-                .await?;
+            self.inner.stream.send_packet(StmtClose(id)).await?;
             // for StmtClose
             let _ok: OkPacket = self.inner.stream.recv().await?;
 

@@ -1,4 +1,5 @@
 use self::stream::XuguStream;
+pub(crate) use crate::connection::id::StatementId;
 use crate::io::AsyncStreamExt;
 use crate::protocol::message::*;
 use crate::protocol::statement::StmtClose;
@@ -18,6 +19,7 @@ use std::fmt::{Debug, Formatter};
 
 mod establish;
 mod executor;
+mod id;
 mod ssl;
 mod stream;
 
@@ -32,28 +34,24 @@ pub(crate) struct XuguConnectionInner {
     pub(crate) transaction_depth: usize,
     // status_flags: Status,
 
+    // sequence of statement IDs for use in preparing statements
+    next_statement_id: StatementId,
+
     // cache by query string to the statement id and metadata
-    cache_statement: StatementCache<(u32, XuguStatementMetadata)>,
+    cache_statement: StatementCache<(StatementId, XuguStatementMetadata)>,
 
     // number of ReadyForQuery messages that we are currently expecting
     pub(crate) pending_ready_for_query_count: usize,
     pub(crate) last_num_columns: usize,
 
     log_settings: LogSettings,
-
-    st_id_gen: u32,
-    con_obj_name: String,
 }
 
 impl XuguConnectionInner {
-    pub(crate) fn gen_st_id(&mut self) -> u32 {
-        self.st_id_gen = self.st_id_gen.wrapping_add(1);
-        self.st_id_gen
-    }
-
-    pub(super) fn addr_code(&mut self) -> usize {
-        let addr = std::ptr::addr_of!(*self) as usize;
-        addr
+    pub(crate) fn gen_st_id(&mut self) -> StatementId {
+        let id = self.next_statement_id;
+        self.next_statement_id = id.next();
+        id
     }
 }
 
@@ -225,10 +223,7 @@ impl Connection for XuguConnection {
             while let Some((statement_id, _)) = self.inner.cache_statement.remove_lru() {
                 self.inner
                     .stream
-                    .send_packet(StmtClose {
-                        st_id: statement_id,
-                        con_obj_name: &self.inner.con_obj_name,
-                    })
+                    .send_packet(StmtClose(statement_id))
                     .await?;
 
                 let _ok: OkPacket = self.inner.stream.recv().await?;

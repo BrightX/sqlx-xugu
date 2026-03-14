@@ -255,7 +255,7 @@ pub enum ColumnType {
 }
 
 impl ColumnType {
-    pub(crate) fn name(self) -> &'static str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             ColumnType::NONE => "none",
             ColumnType::NULL => "null",

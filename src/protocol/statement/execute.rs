@@ -1,4 +1,5 @@
 use crate::arguments::XuguArgumentValue;
+use crate::connection::StatementId;
 use crate::protocol::encode_sql_command;
 use crate::protocol::statement::ParameterDef;
 use crate::protocol::text::ColumnType;
@@ -8,14 +9,13 @@ use sqlx_core::io::ProtocolEncode;
 use sqlx_core::Error;
 
 #[derive(Debug)]
-pub struct Execute<'c, 'q, 'p> {
-    pub con_obj_name: &'c str,
-    pub st_id: u32,
+pub struct Execute<'q, 'p> {
+    pub st_id: StatementId,
     pub arguments: &'q XuguArguments<'q>,
     pub params: &'p Vec<ParameterDef>,
 }
 
-impl Execute<'_, '_, '_> {
+impl Execute<'_, '_> {
     fn encode_params(&self, buf: &mut Vec<u8>) {
         let params = &self.params;
         let args = &self.arguments.values;
@@ -45,9 +45,9 @@ impl Execute<'_, '_, '_> {
     }
 }
 
-impl ProtocolEncode<'_, ()> for Execute<'_, '_, '_> {
+impl ProtocolEncode<'_, ()> for Execute<'_, '_> {
     fn encode_with(&self, buf: &mut Vec<u8>, _: ()) -> Result<(), Error> {
-        let sql_cmd = format!("? st{}{}", self.con_obj_name, self.st_id);
+        let sql_cmd = format!("? {}", self.st_id);
 
         encode_sql_command(buf, &sql_cmd);
         self.encode_params(buf);
