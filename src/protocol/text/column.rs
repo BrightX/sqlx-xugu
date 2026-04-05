@@ -135,6 +135,11 @@ pub enum ColumnType {
     VARBIT = 63,
     XML = 64,
     ARRAY = 65,
+    // 向量类型
+    VECTOR = 76,
+    HALFVEC = 77,
+    SPARSEVEC = 78,
+
     BLADE_BEGIN = 101,
     BLADE_END = 1000,
 
@@ -327,6 +332,9 @@ impl ColumnType {
 
             ColumnType::XML => "XML",
             ColumnType::ARRAY => "ARRAY",
+            ColumnType::VECTOR => "VECTOR",
+            ColumnType::HALFVEC => "HALFVEC",
+            ColumnType::SPARSEVEC => "SPARSEVEC",
             ColumnType::BLADE_BEGIN => "BLADE_BEGIN",
             ColumnType::BLADE_END => "BLADE_END",
 
@@ -506,6 +514,9 @@ impl ColumnType {
             63 => ColumnType::VARBIT,
             64 => ColumnType::XML,
             65 => ColumnType::ARRAY,
+            76 => ColumnType::VECTOR,
+            77 => ColumnType::HALFVEC,
+            78 => ColumnType::SPARSEVEC,
             101 => ColumnType::BLADE_BEGIN,
             1000 => ColumnType::BLADE_END,
 

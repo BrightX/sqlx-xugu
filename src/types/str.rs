@@ -39,6 +39,9 @@ impl Type<Xugu> for str {
                 | ColumnType::ROWID
                 | ColumnType::ROWVERSION
                 | ColumnType::ARRAY
+                | ColumnType::VECTOR
+                | ColumnType::HALFVEC
+                | ColumnType::SPARSEVEC
 
                 // 几何类型 按字符串编解码
                 | ColumnType::POINT
