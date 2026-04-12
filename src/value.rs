@@ -4,7 +4,6 @@ use std::borrow::Cow;
 use std::str::from_utf8;
 
 use crate::error::{BoxDynError, UnexpectedNullError};
-use crate::protocol::text::ColumnType;
 use crate::{Xugu, XuguTypeInfo};
 
 /// Implementation of [`Value`] for Xugu.
@@ -51,7 +50,7 @@ impl Value for XuguValue {
     }
 
     fn is_null(&self) -> bool {
-        is_null(self.value.as_deref(), &self.type_info)
+        is_null(self.value.as_deref())
     }
 }
 
@@ -128,21 +127,13 @@ impl<'r> ValueRef<'r> for XuguValueRef<'r> {
 
     #[inline]
     fn is_null(&self) -> bool {
-        is_null(self.value, &self.type_info)
+        is_null(self.value)
     }
 }
 
-fn is_null(value: Option<&[u8]>, ty: &XuguTypeInfo) -> bool {
+fn is_null(value: Option<&[u8]>) -> bool {
     if let Some(value) = value {
         if value.is_empty() {
-            return true;
-        }
-        // zero dates and date times should be treated the same as NULL
-        if matches!(
-            ty.r#type,
-            ColumnType::DATE | ColumnType::TIME | ColumnType::DATETIME
-        ) && value.starts_with(b"\0")
-        {
             return true;
         }
     }
