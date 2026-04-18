@@ -31,7 +31,11 @@ impl Type<Xugu> for [u8] {
 
 impl<'q> Encode<'q, Xugu> for &'q [u8] {
     fn encode_by_ref(&self, args: &mut Vec<XuguArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Bin(Cow::Borrowed(self)));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Bin(Cow::Borrowed(b"\0")));
+        } else {
+            args.push(XuguArgumentValue::Bin(Cow::Borrowed(self)));
+        }
 
         Ok(IsNull::No)
     }
@@ -39,7 +43,7 @@ impl<'q> Encode<'q, Xugu> for &'q [u8] {
 
 impl<'q> Decode<'q, Xugu> for &'q [u8] {
     fn decode(value: XuguValueRef<'q>) -> Result<Self, BoxDynError> {
-        value.as_bytes()
+        value.as_bytes().map(map_empty)
     }
 }
 
@@ -55,13 +59,21 @@ impl Type<Xugu> for Box<[u8]> {
 
 impl Encode<'_, Xugu> for Box<[u8]> {
     fn encode(self, args: &mut Vec<XuguArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Bin(Cow::Owned(self.into_vec())));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Bin(Cow::Borrowed(b"\0")));
+        } else {
+            args.push(XuguArgumentValue::Bin(Cow::Owned(self.into_vec())));
+        }
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut Vec<XuguArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Bin(Cow::Owned(self.clone().into_vec())));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Bin(Cow::Borrowed(b"\0")));
+        } else {
+            args.push(XuguArgumentValue::Bin(Cow::Owned(self.clone().into_vec())));
+        }
 
         Ok(IsNull::No)
     }
@@ -69,7 +81,7 @@ impl Encode<'_, Xugu> for Box<[u8]> {
 
 impl<'r> Decode<'r, Xugu> for Box<[u8]> {
     fn decode(value: XuguValueRef<'r>) -> Result<Self, BoxDynError> {
-        value.as_bytes().map(Box::from)
+        value.as_bytes().map(map_empty).map(Box::from)
     }
 }
 
@@ -85,13 +97,21 @@ impl Type<Xugu> for Vec<u8> {
 
 impl Encode<'_, Xugu> for Vec<u8> {
     fn encode(self, args: &mut Vec<XuguArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Bin(Cow::Owned(self)));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Bin(Cow::Borrowed(b"\0")));
+        } else {
+            args.push(XuguArgumentValue::Bin(Cow::Owned(self)));
+        }
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut Vec<XuguArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Bin(Cow::Owned(self.clone())));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Bin(Cow::Borrowed(b"\0")));
+        } else {
+            args.push(XuguArgumentValue::Bin(Cow::Owned(self.clone())));
+        }
 
         Ok(IsNull::No)
     }
@@ -99,6 +119,14 @@ impl Encode<'_, Xugu> for Vec<u8> {
 
 impl Decode<'_, Xugu> for Vec<u8> {
     fn decode(value: XuguValueRef<'_>) -> Result<Self, BoxDynError> {
-        value.as_bytes().map(ToOwned::to_owned)
+        value.as_bytes().map(map_empty).map(ToOwned::to_owned)
     }
+}
+
+// 处理空字节
+fn map_empty(s: &[u8]) -> &[u8] {
+    if s == b"\0" {
+        return b"";
+    }
+    s
 }

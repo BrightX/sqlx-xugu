@@ -63,7 +63,11 @@ impl Type<Xugu> for str {
 
 impl<'q> Encode<'q, Xugu> for &'q str {
     fn encode_by_ref(&self, args: &mut Vec<XuguArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Str(Cow::Borrowed(*self)));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Str(Cow::Borrowed("\0")));
+        } else {
+            args.push(XuguArgumentValue::Str(Cow::Borrowed(*self)));
+        }
 
         Ok(IsNull::No)
     }
@@ -71,7 +75,7 @@ impl<'q> Encode<'q, Xugu> for &'q str {
 
 impl<'q> Decode<'q, Xugu> for &'q str {
     fn decode(value: XuguValueRef<'q>) -> Result<Self, BoxDynError> {
-        value.as_str()
+        value.as_str().map(map_empty)
     }
 }
 
@@ -87,15 +91,23 @@ impl Type<Xugu> for Box<str> {
 
 impl Encode<'_, Xugu> for Box<str> {
     fn encode(self, args: &mut Vec<XuguArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Str(Cow::Owned(self.into_string())));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Str(Cow::Borrowed("\0")));
+        } else {
+            args.push(XuguArgumentValue::Str(Cow::Owned(self.into_string())));
+        }
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut Vec<XuguArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Str(Cow::Owned(
-            self.clone().into_string(),
-        )));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Str(Cow::Borrowed("\0")));
+        } else {
+            args.push(XuguArgumentValue::Str(Cow::Owned(
+                self.clone().into_string(),
+            )));
+        }
 
         Ok(IsNull::No)
     }
@@ -112,7 +124,7 @@ impl<'r> Decode<'r, Xugu> for Box<str> {
             return Ok(Box::from(num.to_string()));
         }
 
-        value.as_str().map(Box::from)
+        value.as_str().map(map_empty).map(Box::from)
     }
 }
 
@@ -128,13 +140,21 @@ impl Type<Xugu> for String {
 
 impl Encode<'_, Xugu> for String {
     fn encode(self, args: &mut Vec<XuguArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Str(Cow::Owned(self)));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Str(Cow::Borrowed("\0")));
+        } else {
+            args.push(XuguArgumentValue::Str(Cow::Owned(self)));
+        }
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut Vec<XuguArgumentValue<'_>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Str(Cow::Owned(self.clone())));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Str(Cow::Borrowed("\0")));
+        } else {
+            args.push(XuguArgumentValue::Str(Cow::Owned(self.clone())));
+        }
 
         Ok(IsNull::No)
     }
@@ -151,7 +171,7 @@ impl Decode<'_, Xugu> for String {
             return Ok(num.to_string());
         }
 
-        value.as_str().map(ToOwned::to_owned)
+        value.as_str().map(map_empty).map(ToOwned::to_owned)
     }
 }
 
@@ -167,13 +187,21 @@ impl Type<Xugu> for Cow<'_, str> {
 
 impl<'q> Encode<'q, Xugu> for Cow<'q, str> {
     fn encode(self, args: &mut Vec<XuguArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Str(self));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Str(Cow::Borrowed("\0")));
+        } else {
+            args.push(XuguArgumentValue::Str(self));
+        }
 
         Ok(IsNull::No)
     }
 
     fn encode_by_ref(&self, args: &mut Vec<XuguArgumentValue<'q>>) -> Result<IsNull, BoxDynError> {
-        args.push(XuguArgumentValue::Str(self.clone()));
+        if self.is_empty() {
+            args.push(XuguArgumentValue::Str(Cow::Borrowed("\0")));
+        } else {
+            args.push(XuguArgumentValue::Str(self.clone()));
+        }
 
         Ok(IsNull::No)
     }
@@ -190,6 +218,14 @@ impl<'r> Decode<'r, Xugu> for Cow<'r, str> {
             return Ok(Cow::Owned(num.to_string()));
         }
 
-        value.as_str().map(Cow::Borrowed)
+        value.as_str().map(map_empty).map(Cow::Borrowed)
     }
+}
+
+// 处理空字符串
+fn map_empty(s: &str) -> &str {
+    if s == "\0" {
+        return "";
+    }
+    s
 }
