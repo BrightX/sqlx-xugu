@@ -9,8 +9,8 @@ use crate::{Xugu, XuguTypeInfo};
 /// Implementation of [`Value`] for Xugu.
 #[derive(Clone)]
 pub struct XuguValue {
-    value: Option<Bytes>,
-    type_info: XuguTypeInfo,
+    pub(crate) value: Option<Bytes>,
+    pub(crate) type_info: XuguTypeInfo,
 }
 
 /// Implementation of [`ValueRef`] for Xugu.

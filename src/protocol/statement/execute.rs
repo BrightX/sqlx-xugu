@@ -36,6 +36,7 @@ impl Execute<'_, '_> {
                 XuguArgumentValue::Null => ([].as_slice(), ColumnType::NULL as i32),
                 XuguArgumentValue::Str(x) => (x.as_bytes(), type_id),
                 XuguArgumentValue::Bin(x) => (x.as_ref(), type_id),
+                XuguArgumentValue::Bytes(x) => (x.as_ref(), type_id),
             };
             buf.put_i16(type_id as i16);
 

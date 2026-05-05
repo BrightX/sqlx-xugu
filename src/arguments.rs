@@ -1,4 +1,5 @@
 use crate::{Xugu, XuguTypeInfo};
+use bytes::Bytes;
 pub(crate) use sqlx_core::arguments::*;
 use sqlx_core::encode::{Encode, IsNull};
 use sqlx_core::error::BoxDynError;
@@ -10,6 +11,7 @@ pub enum XuguArgumentValue<'q> {
     Null,
     Str(Cow<'q, str>),
     Bin(Cow<'q, [u8]>),
+    Bytes(Bytes),
 }
 
 /// Implementation of [`Arguments`] for Xugu.
