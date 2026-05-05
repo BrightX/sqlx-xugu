@@ -31,7 +31,7 @@ bitflags! {
     }
 }
 
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "offline", derive(serde::Serialize, serde::Deserialize))]
 #[repr(i32)]

@@ -93,14 +93,14 @@ impl ReceivedMessage {
             ));
         }
 
-        Ok(T::decode_body(stream, cnt)
+        T::decode_body(stream, cnt)
             .map_err(|e| match e {
                 Error::Protocol(s) => {
                     err_protocol!("Xugu protocol error (reading {:?}): {s}", self.format)
                 }
                 other => other,
             })
-            .await?)
+            .await
     }
 }
 

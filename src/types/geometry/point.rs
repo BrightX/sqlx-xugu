@@ -61,18 +61,18 @@ impl<'r> Decode<'r, Xugu> for XgPoint {
         let ty = value.type_info.r#type;
         if ty == ColumnType::POINT_OLD {
             let buf = value.as_bytes()?;
-            return Ok(Self::from_bytes(buf)?);
+            return Self::from_bytes(buf);
         }
         // 部分旧版的是按字节解码，新版的是字符串
         if ty == ColumnType::POINT {
             let buf = value.as_bytes()?;
             if buf.len() == 16 && buf[0] != b'(' && !buf.contains(&b',') {
-                return Ok(Self::from_bytes(buf)?);
+                return Self::from_bytes(buf);
             }
         }
 
         let s = value.as_str()?;
-        Ok(Self::from_str(s)?)
+        Self::from_str(s)
     }
 }
 

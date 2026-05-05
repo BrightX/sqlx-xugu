@@ -46,7 +46,7 @@ impl Type<Xugu> for XgCircle {
 impl<'r> Decode<'r, Xugu> for XgCircle {
     fn decode(value: XuguValueRef<'r>) -> Result<Self, BoxDynError> {
         let s = value.as_str()?;
-        Ok(Self::from_str(s)?)
+        Self::from_str(s)
     }
 }
 

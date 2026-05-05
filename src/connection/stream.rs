@@ -128,8 +128,8 @@ impl XuguStream {
     async fn handshake_ssl(&mut self, conn_str: &str) -> Result<()> {
         self.socket.write(b"~ssl~".as_slice())?;
         self.socket.flush().await?;
-        let mut public_key: Bytes = self.socket.read(32).await?;
-        let mut trail_key: Bytes = self.socket.read(32).await?;
+        let public_key: Bytes = self.socket.read(32).await?;
+        let trail_key: Bytes = self.socket.read(32).await?;
 
         let mut key = [0u8; 32];
         getrandom::fill(&mut key).unwrap();
@@ -137,7 +137,7 @@ impl XuguStream {
         key[31] &= 0b0111_1111;
 
         init_key(&mut self.turing_read, &mut self.turing_send, &key);
-        let conn_bytes = encrypt_conn(&conn_str, &key, &mut public_key, &mut trail_key);
+        let conn_bytes = encrypt_conn(conn_str, &key, &public_key, &trail_key);
         self.socket.write(conn_bytes.as_slice())?;
         self.socket.flush().await?;
 

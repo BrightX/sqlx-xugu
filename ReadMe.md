@@ -4,7 +4,7 @@
 [![gitee](https://img.shields.io/badge/Gitee-BrightXu/sqlx--xugu-8da0cb?labelColor=C71D23&logo=gitee)](https://gitee.com/BrightXu/sqlx-xugu)
 [![crate](https://img.shields.io/crates/v/sqlx-xugu.svg?logo=rust)](https://crates.io/crates/sqlx-xugu)
 [![documentation](https://img.shields.io/badge/docs.rs-sqlx--xugu-66c2a5?labelColor=555555&logo=docs.rs)](https://docs.rs/sqlx-xugu)
-[![minimum rustc 1.60](https://img.shields.io/badge/rustc-1.60+-red.svg?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
+[![minimum rustc 1.70](https://img.shields.io/badge/rustc-1.70+-red.svg?logo=rust)](https://rust-lang.github.io/rfcs/2495-min-rust-version.html)
 ![License](https://img.shields.io/crates/l/sqlx-xugu)
 
 > 基于 `sqlx` 的 `rust` 虚谷数据库驱动。

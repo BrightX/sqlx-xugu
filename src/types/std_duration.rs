@@ -48,7 +48,7 @@ impl Encode<'_, Xugu> for Duration {
     }
 }
 
-/// [`std::time::Duration`] 表示的持续时间为非负数，解码时取绝对值
+/// [`Duration`] 表示的持续时间为非负数，解码时取绝对值
 impl<'r> Decode<'r, Xugu> for Duration {
     fn decode(value: XuguValueRef<'r>) -> Result<Self, BoxDynError> {
         let ty = value.type_info.r#type;
@@ -76,13 +76,13 @@ impl<'r> Decode<'r, Xugu> for Duration {
             // 精确到小时
             ColumnType::INTERVAL_D2H | ColumnType::INTERVAL_H => {
                 let h: i32 = buf.get_i32();
-                let delta = Duration::from_hours(h.abs() as u64);
+                let delta = Duration::from_secs(h.unsigned_abs() as u64 * 60 * 60);
                 Ok(delta)
             }
             // 精确到分钟
             ColumnType::INTERVAL_D2M | ColumnType::INTERVAL_H2M | ColumnType::INTERVAL_MI => {
                 let min: i32 = buf.get_i32();
-                let delta = Duration::from_mins(min.abs() as u64);
+                let delta = Duration::from_secs(min.unsigned_abs() as u64 * 60);
                 Ok(delta)
             }
             // 精确到秒
@@ -91,7 +91,7 @@ impl<'r> Decode<'r, Xugu> for Duration {
             | ColumnType::INTERVAL_M2S
             | ColumnType::INTERVAL_S => {
                 let us: i64 = buf.get_i64();
-                let delta = Duration::from_micros(us.abs() as u64);
+                let delta = Duration::from_micros(us.unsigned_abs());
                 Ok(delta)
             }
             _ => Err(BoxDynError::from(

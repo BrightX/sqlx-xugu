@@ -29,7 +29,7 @@ impl Encode<'_, Xugu> for OffsetDateTime {
     fn encode_by_ref(&self, args: &mut Vec<XuguArgumentValue>) -> Result<IsNull, BoxDynError> {
         let unix_secs = self.unix_timestamp();
         let micro = self.microsecond();
-        let micros = unix_secs * 1000_000 + micro as i64;
+        let micros = unix_secs * 1_000_000 + micro as i64;
         let offset_hm = self.offset().whole_minutes();
 
         let mut buf = Vec::with_capacity(10);
@@ -47,7 +47,7 @@ impl<'r> Decode<'r, Xugu> for OffsetDateTime {
         // 不带时区的日期时间
         if ty == ColumnType::DATETIME || ty == ColumnType::DATE {
             let native = <PrimitiveDateTime as Decode<Xugu>>::decode(value)?;
-            let local = OffsetDateTime::now_local().unwrap();
+            let local = OffsetDateTime::now_local()?;
             let tz = local.replace_date_time(native);
 
             return Ok(tz);
@@ -58,8 +58,8 @@ impl<'r> Decode<'r, Xugu> for OffsetDateTime {
         let tz_hm = buf.get_i16();
 
         let nanos = micros as i128 * 1000;
-        let offset = UtcOffset::from_whole_seconds(tz_hm as i32 * 60).unwrap();
-        let utc = OffsetDateTime::from_unix_timestamp_nanos(nanos).unwrap();
+        let offset = UtcOffset::from_whole_seconds(tz_hm as i32 * 60)?;
+        let utc = OffsetDateTime::from_unix_timestamp_nanos(nanos)?;
 
         let tz = utc.to_offset(offset);
 
@@ -117,7 +117,7 @@ impl<'r> Decode<'r, Xugu> for PrimitiveDateTime {
         }
 
         let millis = <i64 as Decode<Xugu>>::decode(value)?;
-        let nanos = millis as i128 * 1000_000;
+        let nanos = millis as i128 * 1_000_000;
         let utc = UtcDateTime::from_unix_timestamp_nanos(nanos)?;
 
         Ok(PrimitiveDateTime::new(utc.date(), utc.time()))

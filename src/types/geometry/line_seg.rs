@@ -50,7 +50,7 @@ impl Type<Xugu> for XgLSeg {
 impl<'r> Decode<'r, Xugu> for XgLSeg {
     fn decode(value: XuguValueRef<'r>) -> Result<Self, BoxDynError> {
         let s = value.as_str()?;
-        Ok(Self::from_str(s)?)
+        Self::from_str(s)
     }
 }
 

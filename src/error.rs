@@ -29,6 +29,7 @@ impl Display for XuguDatabaseError {
     }
 }
 
+#[allow(clippy::should_implement_trait)]
 impl XuguDatabaseError {
     pub fn from_str(err: &str) -> Self {
         let mut code_range: Range<usize> = 0..0;

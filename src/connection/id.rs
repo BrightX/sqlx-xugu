@@ -1,6 +1,6 @@
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::num::{NonZeroU32, Saturating};
+use std::num::NonZeroU32;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) struct StatementId(IdInner);
@@ -20,11 +20,6 @@ impl StatementId {
 
     pub fn next(&self) -> Self {
         Self(self.0.next())
-    }
-
-    #[allow(unused)]
-    pub fn name_len(&self) -> Saturating<usize> {
-        self.0.name_len(Self::NAME_PREFIX)
     }
 
     /// Get a type to format this statement ID with [`Display`].
@@ -59,22 +54,5 @@ impl IdInner {
     #[inline(always)]
     fn display(&self, prefix: &'static str) -> DisplayId {
         DisplayId { prefix, id: self.0 }
-    }
-
-    #[inline(always)]
-    fn name_len(&self, name_prefix: &str) -> Saturating<usize> {
-        let mut len = Saturating(0);
-
-        len += name_prefix.len();
-        // estimate the length of the ID in decimal
-        // `.ilog10()` can't panic since the value is never zero
-        len += self.0.get().ilog10() as usize;
-        // add one to compensate for `ilog10()` rounding down.
-        len += 1;
-
-        // count the NUL terminator
-        len += 1;
-
-        len
     }
 }

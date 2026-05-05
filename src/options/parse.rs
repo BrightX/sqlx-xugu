@@ -119,43 +119,43 @@ impl XuguConnectOptions {
         url.query_pairs_mut()
             .append_pair("return_rowid", bool2url(self.return_rowid));
         if let Some(encryptor) = &self.encryptor {
-            url.query_pairs_mut().append_pair("encryptor", &encryptor);
+            url.query_pairs_mut().append_pair("encryptor", encryptor);
         }
         url.query_pairs_mut().append_pair("charset", &self.charset);
         if let Some(time_zone) = &self.time_zone {
-            url.query_pairs_mut().append_pair("time_zone", &time_zone);
+            url.query_pairs_mut().append_pair("time_zone", time_zone);
         }
         if let Some(iso_level) = &self.iso_level {
-            url.query_pairs_mut().append_pair("iso_level", &iso_level);
+            url.query_pairs_mut().append_pair("iso_level", iso_level);
         }
         if let Some(lock_timeout) = &self.lock_timeout {
             url.query_pairs_mut()
-                .append_pair("lock_timeout", &lock_timeout);
+                .append_pair("lock_timeout", lock_timeout);
         }
         if let Some(lob_ret) = &self.lob_ret {
-            url.query_pairs_mut().append_pair("lob_ret", &lob_ret);
+            url.query_pairs_mut().append_pair("lob_ret", lob_ret);
         }
         if let Some(identity_mode) = &self.identity_mode {
             url.query_pairs_mut()
-                .append_pair("identity_mode", &identity_mode);
+                .append_pair("identity_mode", identity_mode);
         }
         if let Some(keyword_filter) = &self.keyword_filter {
             url.query_pairs_mut()
-                .append_pair("keyword_filter", &keyword_filter);
+                .append_pair("keyword_filter", keyword_filter);
         }
         if let Some(disable_binlog) = &self.disable_binlog {
             url.query_pairs_mut()
-                .append_pair("disable_binlog", &disable_binlog);
+                .append_pair("disable_binlog", disable_binlog);
         }
         url.query_pairs_mut()
             .append_pair("auto_commit", bool2url(self.auto_commit));
         if let Some(current_schema) = &self.current_schema {
             url.query_pairs_mut()
-                .append_pair("current_schema", &current_schema);
+                .append_pair("current_schema", current_schema);
         }
         if let Some(compatible_mode) = &self.compatible_mode {
             url.query_pairs_mut()
-                .append_pair("compatible_mode", &compatible_mode);
+                .append_pair("compatible_mode", compatible_mode);
         }
         url.query_pairs_mut()
             .append_pair("use_ssl", bool2url(self.use_ssl));
