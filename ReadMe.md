@@ -18,7 +18,7 @@
 ```toml
 # Cargo.toml
 sqlx = { version = "=0.8.6", features = ["runtime-tokio"] }
-sqlx-xugu = { version = "0.8.8" }
+sqlx-xugu = { version = "0.8.9" }
 
 ```
 
@@ -29,7 +29,7 @@ sqlx-xugu = { version = "0.8.8" }
 ```toml
 # Cargo.toml
 sqlx = { version = "=0.8.6", features = ["runtime-tokio", "chrono", "uuid", "rust_decimal", "bigdecimal", "time"] }
-sqlx-xugu = { version = "0.8.8", features = ["chrono", "uuid", "rust_decimal", "bigdecimal", "time"] }
+sqlx-xugu = { version = "0.8.9", features = ["chrono", "uuid", "rust_decimal", "bigdecimal", "time"] }
 ```
 
 -   `uuid`: 添加对 UUID 的支持。
@@ -152,8 +152,6 @@ sqlx-xugu 驱动url格式，支持以下几种
 [MIT](https://opensource.org/license/mit) or [Apache 2.0](https://opensource.org/licenses/Apache-2.0)
 
 ### 免责声明
-
-**sqlx-xugu** 跟 **成都虚谷伟业科技有限公司** 不构成任何知识产权归属关系。这个程序不含任何担保。
 
 软件以“现状”提供，不提供任何明示或暗示的保证，包括但不限于可销性、特定用途适用性和非侵权等保证。
 无论如何，作者或版权持有人对因软件或软件使用或其他交易产生的、涉及合同、侵权或其他诉讼的索赔、损害或其他责任均不承担责任。
